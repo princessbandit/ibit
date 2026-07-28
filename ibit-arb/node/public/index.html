@@ -4,94 +4,151 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IBIT Arb Dashboard — BlackRock iShares Bitcoin Trust</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
+  :root {
+    --bg:       #050812;
+    --panel:    #0C1528CC;
+    --strong:   #111D3BCC;
+    --nav:      #060C1CCC;
+    --hover:    #0F1E3ACC;
+    --text:     #ECF3FF;
+    --muted:    #9AB0D4;
+    --meta:     #B8C8E6;
+    --caption:  #7F94BA;
+    --footer-text: #6B7FA0;
+    --violet:   #7059FB;
+    --blue:     #5070C8;
+    --bright:   #6F86FF;
+    --border:   #7DA5FF28;
+
+    --green: #4F9A6E;
+    --yellow: #BFA054;
+    --red: #B8555F;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0a; color: #e8e0cc; font-family: 'Segoe UI', monospace; font-size: 13px; }
+  body {
+    background-image:
+      linear-gradient(#5F7FB51A 1px, transparent 1px),
+      linear-gradient(90deg, #5F7FB51A 1px, transparent 1px),
+      linear-gradient(90deg, #1A3D8F 0%, #050812 50%, #0E5669 100%);
+    background-color: var(--bg);
+    background-size: 40px 40px, 40px 40px, 100% 100%;
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
 
   header {
-    background: #111;
-    border-bottom: 2px solid #c9a84c;
-    padding: 14px 24px;
+    background: var(--nav);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border);
+    padding: 4px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
   }
-  header h1 { font-size: 18px; font-weight: 700; color: #c9a84c; letter-spacing: 1px; }
-  header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  header .logo {
+    height: 96px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  header .title-block {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  header h1 { font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+  header .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  header .status-block { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .mode-badge {
-    background: #1a1a1a;
-    border: 1px solid #c9a84c44;
-    color: #c9a84c;
+    background: #7059FB22;
+    border: 1px solid #7059FB66;
+    color: var(--text);
     padding: 4px 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: 600;
   }
 
   .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; padding: 16px 24px; }
   .card {
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 6px;
+    background: linear-gradient(145deg, var(--strong), var(--panel));
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 14px 18px;
+    box-shadow: 0 16px 40px #0006;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   }
-  .card .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .card .value { font-size: 22px; font-weight: 700; color: #e8e0cc; }
-  .card .sub   { font-size: 11px; color: #555; margin-top: 4px; }
-  .card.highlight { border-color: #c9a84c44; }
-  .card.highlight .value { color: #c9a84c; }
+  .card:hover { background: var(--hover); border-color: #7DA5FF55; transform: translateY(-1px); }
+  .card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .card .sub   { font-size: 11px; color: var(--caption); margin-top: 4px; }
+  .card.highlight { border-color: #7059FB66; }
+  .card.highlight .value { color: var(--bright); }
 
-  .signal-neutral { color: #555 !important; }
-  .signal-create  { color: #4caf50 !important; }
-  .signal-redeem  { color: #f44336 !important; }
+  .signal-neutral { color: var(--caption) !important; }
+  .signal-create  { color: var(--green) !important; }
+  .signal-redeem  { color: var(--red) !important; }
 
   .chart-container {
     margin: 0 24px 16px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 6px;
+    background: linear-gradient(145deg, #13284DCC, #0C1830CC);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 16px;
+    box-shadow: 0 16px 40px #0006;
   }
-  .chart-container h3 { font-size: 12px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .chart-container h3 { font-size: 12px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1.5px; }
   canvas { max-height: 180px; }
 
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 24px 16px; }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; color: #666; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 6px 8px; border-bottom: 1px solid #222; }
-  td { padding: 6px 8px; border-bottom: 1px solid #1a1a1a; }
-  tr:hover td { background: #161616; }
-  .badge { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; }
-  .badge-create { background: #1b3a1e; color: #4caf50; }
-  .badge-redeem { background: #3a1b1b; color: #f44336; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: var(--hover); }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .badge-create { background: rgba(79,154,110,0.15); color: var(--green); border: 1px solid rgba(79,154,110,0.5); }
+  .badge-redeem { background: rgba(184,85,95,0.15); color: var(--red); border: 1px solid rgba(184,85,95,0.5); }
 
-  .cost-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #1a1a1a; font-size: 12px; }
-  .cost-row:last-child { border-bottom: none; font-weight: 700; color: #c9a84c; }
+  .cost-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .cost-row:last-child { border-bottom: none; font-weight: 700; color: var(--bright); }
 
-  .mech { margin: 0 24px 24px; background: #111; border: 1px solid #222; border-radius: 6px; padding: 16px; }
-  .mech h3 { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-  .mech .step { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: 700; font-size: 11px; margin-bottom: 6px; }
-  .mech .step-create { background: #1b3a1e; color: #4caf50; }
-  .mech .step-redeem { background: #3a1b1b; color: #f44336; }
-  .mech div { color: #666; font-size: 12px; padding-left: 12px; margin: 2px 0; }
+  .mech { margin: 0 24px 24px; background: linear-gradient(145deg, var(--strong), var(--panel)); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 16px 40px #0006; }
+  .mech h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .mech .step { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-bottom: 6px; }
+  .mech .step-create { background: rgba(79,154,110,0.15); color: var(--green); border: 1px solid rgba(79,154,110,0.5); }
+  .mech .step-redeem { background: rgba(184,85,95,0.15); color: var(--red); border: 1px solid rgba(184,85,95,0.5); }
+  .mech div { color: var(--caption); font-size: 12px; padding-left: 12px; margin: 2px 0; }
 
-  #conn-status { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; margin-right: 6px; }
-  #conn-status.connected { background: #4caf50; }
-  footer { text-align: center; padding: 12px; color: #333; font-size: 11px; border-top: 1px solid #1a1a1a; }
+  #conn-status { width: 8px; height: 8px; border-radius: 50%; background: var(--caption); display: inline-block; margin-right: 6px; }
+  #conn-status.connected { background: var(--green); box-shadow: 0 0 6px rgba(79,154,110,0.6); }
+  footer { text-align: center; padding: 12px; color: var(--footer-text); font-size: 11px; border-top: 1px solid #7895D920; }
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>⬛ IBIT ARB DASHBOARD</h1>
+  <img class="logo" src="openexa_logo.webp" alt="Logo">
+  <div class="title-block">
+    <h1>IBIT ARB DASHBOARD</h1>
     <div class="sub">BlackRock iShares Bitcoin Trust ETF &nbsp;|&nbsp; Custodian: Coinbase Custody &nbsp;|&nbsp; <span id="conn-status"></span><span id="conn-text">Connecting...</span></div>
   </div>
-  <div style="text-align:right">
+  <div class="status-block">
     <div class="mode-badge" id="mode-badge">—</div>
-    <div style="font-size:11px;color:#555;margin-top:4px" id="last-update">—</div>
+    <div style="font-size:11px;color:var(--caption)" id="last-update">—</div>
   </div>
 </header>
 
@@ -150,7 +207,7 @@
     <div class="label" style="margin-bottom:10px">Recent Trades</div>
     <table>
       <thead><tr><th>Time</th><th>Signal</th><th>IBIT</th><th>Spread</th><th>P&amp;L</th></tr></thead>
-      <tbody id="trade-tbody"><tr><td colspan="5" style="color:#555;text-align:center">No trades yet</td></tr></tbody>
+      <tbody id="trade-tbody"><tr><td colspan="5" style="color:var(--caption);text-align:center">No trades yet</td></tr></tbody>
     </table>
   </div>
 
@@ -176,7 +233,7 @@
 <div style="margin: 0 24px 16px;">
   <div class="card">
     <div class="label" style="margin-bottom:10px">Market Overview</div>
-    <div id="market-overview" style="color:#555;text-align:center">Loading...</div>
+    <div id="market-overview" style="color:var(--caption);text-align:center">Loading...</div>
   </div>
 </div>
 
@@ -212,8 +269,8 @@ const chart = new Chart(ctx, {
     datasets: [{
       label: 'Premium/Discount (bps)',
       data: [],
-      borderColor: '#c9a84c',
-      backgroundColor: 'rgba(201,168,76,0.08)',
+      borderColor: '#6F86FF',
+      backgroundColor: '#7059FB18',
       borderWidth: 1.5,
       pointRadius: 0,
       tension: 0.3,
@@ -230,8 +287,8 @@ const chart = new Chart(ctx, {
     scales: {
       x: { display: false },
       y: {
-        grid: { color: '#1a1a1a' },
-        ticks: { color: '#555', callback: v => v.toFixed(1) + ' bps' },
+        grid: { color: '#21262d' },
+        ticks: { color: '#8b949e', callback: v => v.toFixed(1) + ' bps' },
       }
     }
   }
@@ -321,7 +378,7 @@ function renderTrades(trades) {
       <td>${badge}</td>
       <td>${fmtUsd(t.etfPrice)}</td>
       <td>${fmtN(t.spreadBps, 1)} bps</td>
-      <td style="color:${t.pnl >= 0 ? '#4caf50' : '#f44336'}">${fmtUsd(t.pnl)}</td>
+      <td style="color:${t.pnl >= 0 ? '#4F9A6E' : '#B8555F'}">${fmtUsd(t.pnl)}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -483,7 +540,7 @@ async function loadMarketOverview() {
     const rows = ibitEntries.length > 0
       ? ibitEntries.map(([sym, d]) => {
         const change = d.change_pct != null
-          ? `<span style="color:${d.change_pct >= 0 ? 'green' : 'red'}">${d.change_pct > 0 ? '+' : ''}${d.change_pct}%</span>`
+          ? `<span style="color:${d.change_pct >= 0 ? '#4F9A6E' : '#B8555F'}">${d.change_pct > 0 ? '+' : ''}${d.change_pct}%</span>`
           : '—';
         return `<tr>
           <td><b>${sym}</b></td>
@@ -494,17 +551,17 @@ async function loadMarketOverview() {
           <td>${change}</td>
         </tr>`;
       }).join('')
-      : '<tr><td colspan="6" style="color:#555;text-align:center">No IBIT data</td></tr>';
+      : '<tr><td colspan="6" style="color:var(--caption);text-align:center">No IBIT data</td></tr>';
 
     $('market-overview').innerHTML = `
       <table>
         <thead><tr><th>Symbol</th><th>Last</th><th>Bid</th><th>Ask</th><th>Spread</th><th>Change</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <small style="display:block;margin-top:8px;color:#666">Updated: ${json.timestamp}</small>
+      <small style="display:block;margin-top:8px;color:var(--caption)">Updated: ${json.timestamp}</small>
     `;
   } catch (error) {
-    $('market-overview').innerHTML = '<div style="color:#f44336;text-align:center">Failed to load market overview</div>';
+    $('market-overview').innerHTML = '<div style="color:#B8555F;text-align:center">Failed to load market overview</div>';
   }
 }
 
