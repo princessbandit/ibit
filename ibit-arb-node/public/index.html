@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBIT Arbitrage Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root { --bg:#050812; --panel:#0C1528CC; --strong:#111D3BCC; --nav:#060C1CCC; --hover:#0F1E3ACC; --text:#ECF3FF; --muted:#9AB0D4; --meta:#B8C8E6; --caption:#7F94BA; --violet:#7059FB; --blue:#5070C8; --bright:#6F86FF; --border:#7DA5FF28; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height:100vh; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background-image:linear-gradient(#5F7FB51A 1px,transparent 1px),linear-gradient(90deg,#5F7FB51A 1px,transparent 1px),linear-gradient(90deg,#1A3D8F 0%,#050812 50%,#0E5669 100%); background-color:var(--bg); background-size:40px 40px,40px 40px,100% 100%; background-attachment:fixed; color:var(--text); }
+    .header { background:var(--nav); backdrop-filter:blur(18px); padding:0px 24px; border-bottom:1px solid var(--border); position:relative; display:flex; justify-content:center; align-items:center; text-align:center; }
+    .header h1 { font-size:20px; color:var(--muted); }
+    .header .header-logo { position:absolute; left:30px; top:50%; transform:translateY(-50%); height:56px; width:auto; display:block; }
+    .header .header-controls { position:absolute; right:30px; top:50%; transform:translateY(-50%); }
+    .header .mode { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .mode-live { background: rgba(79,154,110,0.15); color: #4F9A6E; border: 1px solid rgba(79,154,110,0.5); }
+    .mode-dry { background: rgba(191,160,84,0.15); color: #BFA054; border: 1px solid rgba(191,160,84,0.5); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 20px 30px; }
+    .card { background:linear-gradient(145deg,var(--strong),var(--panel)); border:1px solid var(--border); border-radius:12px; padding:20px; box-shadow:0 16px 40px #0006; transition:.2s ease; }
+    .card:hover { background:var(--hover); border-color:#7DA5FF55; transform:translateY(-1px); }
+    .card h3 { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:12px; }
+    .big-number { font-size:32px; font-weight:bold; color:var(--text); }
+    .sub { font-size:13px; color:var(--caption); margin-top:4px; }
+    .signal-box { text-align: center; padding: 30px; }
+    .signal { font-size: 48px; font-weight: bold; }
+    .signal-neutral { color:var(--caption); }
+    .signal-create { color: #4F9A6E; text-shadow: 0 0 20px rgba(79,154,110,0.3); }
+    .signal-redeem { color: #B8555F; text-shadow: 0 0 20px rgba(184,85,95,0.3); }
+    .prem-positive { color: #4F9A6E; }
+    .prem-negative { color: #B8555F; }
+    .chart-container { padding: 0 30px 20px; }
+    .chart-card { background:linear-gradient(145deg,#13284DCC,#0C1830CC); border:1px solid var(--border); border-radius:12px; padding:20px; box-shadow:0 16px 40px #0006; }
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 30px 20px; }
+    .trades-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .trades-table th { text-align: left; padding: 8px; color: #888; border-bottom: 1px solid #2a2a3a; font-size: 11px; text-transform: uppercase; }
+    .trades-table td { padding: 8px; border-bottom: 1px solid #1a1a2a; }
+    .trades-table .create { color: #4F9A6E; }
+    .trades-table .redeem { color: #B8555F; }
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a2a; }
+    .stat-label { color:var(--muted); font-size:13px; }
+    .stat-value { color:var(--text); font-size:13px; font-weight:600; }
+    .blackrock-badge { display:inline-block; background:#7059FB22; color:var(--bright); border:1px solid #7059FB66; padding:2px 8px; border-radius:4px; font-size:10px; margin-left:8px; }
+    @media(max-width:800px){.grid{grid-template-columns:1fr;padding:16px}.bottom-grid{grid-template-columns:1fr;padding:0 16px 16px}.chart-container{padding:0 16px 16px}.header{padding:16px;gap:12px;flex-direction:column}.header .header-controls{position:static;transform:none}.header .header-logo{position:static;transform:none;height:44px;margin-bottom:4px}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img class="header-logo" src="/openexa-logo.png" alt="OpenEXA logo">
+    <div>
+      <h1>IBIT Arbitrage Monitor</h1>
+      <span style="color:var(--muted);font-size:12px;">iShares Bitcoin Trust ETF — Create/Redeem Arb</span>
+    </div>
+    <div class="header-controls" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <span id="clock" style="color:#888;"></span>
+      <span class="mode" id="mode-badge">CONNECTING</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>IBIT ETF Price</h3>
+      <div class="big-number" id="ibit-mid">—</div>
+      <div class="sub">Bid: <span id="ibit-bid">—</span> / Ask: <span id="ibit-ask">—</span></div>
+    </div>
+    <div class="card">
+      <h3>BTC Spot Price</h3>
+      <div class="big-number" id="btc-price">—</div>
+      <div class="sub">NAV Est: <span id="nav">—</span> <span class="blackrock-badge" id="br-badge" style="display:none">BlackRock</span></div>
+    </div>
+    <div class="card signal-box">
+      <h3>Signal</h3>
+      <div class="signal signal-neutral" id="signal">NEUTRAL</div>
+      <div class="sub" id="prem-disc">Premium/Discount: — bps</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Session P&L</h3>
+      <div class="big-number" id="total-pnl">$0.00</div>
+      <div class="sub">Per creation unit (40,000 shares)</div>
+    </div>
+    <div class="card">
+      <h3>Trade Count</h3>
+      <div class="big-number" id="trade-count">0</div>
+      <div class="sub">Win rate: <span id="win-rate">0.0</span>%</div>
+    </div>
+    <div class="card">
+      <h3>Cost Threshold</h3>
+      <div class="big-number" id="threshold">—</div>
+      <div class="sub">bps (cost + min spread)</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-card">
+      <h3 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Premium / Discount (bps) — Live</h3>
+      <canvas id="premChart" height="80"></canvas>
+    </div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="card">
+      <h3>Recent Trades</h3>
+      <table class="trades-table">
+        <thead><tr><th>Time</th><th>Signal</th><th>Spread</th><th>P&L</th></tr></thead>
+        <tbody id="trades-body"></tbody>
+      </table>
+      <div id="no-trades" style="color:#555;text-align:center;padding:20px;">No trades yet</div>
+    </div>
+    <div class="card">
+      <h3>BlackRock Holdings</h3>
+      <div id="blackrock-info">
+        <div class="stat-row"><span class="stat-label">BTC Held</span><span class="stat-value" id="br-btc">—</span></div>
+        <div class="stat-row"><span class="stat-label">Market Value</span><span class="stat-value" id="br-mv">—</span></div>
+        <div class="stat-row"><span class="stat-label">BTC per Share</span><span class="stat-value" id="br-ratio">—</span></div>
+        <div class="stat-row"><span class="stat-label">Shares Outstanding</span><span class="stat-value" id="br-shares">—</span></div>
+      </div>
+      <h3 style="margin-top:20px;">Cost Model</h3>
+      <div id="cost-info">
+        <div class="stat-row"><span class="stat-label">Create/Redeem Fee</span><span class="stat-value" id="cost-fee">—</span></div>
+        <div class="stat-row"><span class="stat-label">ETF Commission</span><span class="stat-value" id="cost-comm">—</span></div>
+        <div class="stat-row"><span class="stat-label">BTC Execution</span><span class="stat-value" id="cost-btc">—</span></div>
+        <div class="stat-row"><span class="stat-label">Market Impact (×2)</span><span class="stat-value" id="cost-impact">—</span></div>
+        <div class="stat-row"><span class="stat-label">BTC Spread</span><span class="stat-value" id="cost-spread">—</span></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const socket = io();
+const $ = (id) => document.getElementById(id);
+const fmtN = (n, d=2) => n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+
+// Chart setup
+const ctx = $('premChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'Premium/Discount', data: [], borderColor: '#6F86FF', backgroundColor:'#7059FB18', borderWidth:2, pointRadius:0, fill:true, tension:0.1 },
+      { label: 'Trigger (+)', data: [], borderColor: 'rgba(79,154,110,0.3)', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false },
+      { label: 'Trigger (-)', data: [], borderColor: 'rgba(184,85,95,0.3)', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false },
+    ]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    scales: {
+      x: { type: 'time', grid: { color: '#1a1a2a' }, ticks: { color: '#555', maxTicksLimit: 10 } },
+      y: { grid: { color: '#1a1a2a' }, ticks: { color: '#555' }, title: { display: true, text: 'bps', color: '#555' } }
+    },
+    plugins: { legend: { labels: { color: '#666', font: { size: 11 } } } }
+  }
+});
+
+let currentTrigger = 48;
+
+socket.on('snapshot', (s) => {
+  // Prices
+  $('ibit-mid').textContent = '$' + fmtN(s.ibitMid, 4);
+  $('ibit-bid').textContent = '$' + fmtN(s.ibitBid, 4);
+  $('ibit-ask').textContent = '$' + fmtN(s.ibitAsk, 4);
+  $('btc-price').textContent = '$' + fmtN(s.btcPrice, 2);
+  $('nav').textContent = '$' + fmtN(s.nav, 4);
+
+  // Signal
+  const sigEl = $('signal');
+  sigEl.textContent = s.signal;
+  sigEl.className = 'signal signal-' + s.signal.toLowerCase();
+
+  // Premium
+  const premEl = $('prem-disc');
+  premEl.innerHTML = `Premium/Discount: <span class="${s.premBps >= 0 ? 'prem-positive' : 'prem-negative'}">${s.premBps >= 0 ? '+' : ''}${fmtN(s.premBps, 1)} bps</span>`;
+
+  // Stats
+  $('total-pnl').textContent = '$' + fmtN(s.totalPnl, 2);
+  $('total-pnl').style.color = s.totalPnl >= 0 ? '#4F9A6E' : '#B8555F';
+  $('trade-count').textContent = s.tradeCount;
+  $('win-rate').textContent = fmtN(s.winRate, 1);
+  $('threshold').textContent = '±' + fmtN(s.trigger, 1);
+  currentTrigger = s.trigger;
+
+  // Mode badge
+  const badge = $('mode-badge');
+  if (window.location.search.includes('dry') || s.elapsed !== undefined) {
+    // Detect from first snapshot
+  }
+
+  // Chart update
+  const t = new Date(s.timestamp);
+  chart.data.datasets[0].data.push({x: t, y: s.premBps});
+  chart.data.datasets[1].data.push({x: t, y: s.trigger});
+  chart.data.datasets[2].data.push({x: t, y: -s.trigger});
+  if (chart.data.datasets[0].data.length > 600) {
+    chart.data.datasets.forEach(ds => ds.data.shift());
+  }
+  chart.update('none');
+
+  // BlackRock data
+  if (s.blackrock) {
+    $('br-badge').style.display = 'inline-block';
+    $('br-btc').textContent = fmtN(s.blackrock.btcHeld, 2) + ' BTC';
+    $('br-mv').textContent = '$' + fmtN(s.blackrock.marketValue, 2);
+    $('br-ratio').textContent = s.blackrock.btcPerShare.toFixed(8);
+    $('br-shares').textContent = fmtN(s.blackrock.sharesOutstanding, 0);
+  }
+
+  // Clock
+  $('clock').textContent = new Date().toLocaleTimeString();
+});
+
+socket.on('connect', () => {
+  $('mode-badge').textContent = 'CONNECTED';
+  $('mode-badge').className = 'mode mode-live';
+});
+socket.on('disconnect', () => {
+  $('mode-badge').textContent = 'DISCONNECTED';
+  $('mode-badge').className = 'mode mode-dry';
+});
+
+socket.on('trade', (t) => addTradeRow(t));
+socket.on('trades', (trades) => { trades.forEach(t => addTradeRow(t)); });
+
+function addTradeRow(t) {
+  $('no-trades').style.display = 'none';
+  const tbody = $('trades-body');
+  const tr = document.createElement('tr');
+  const cls = t.signal === 'CREATE' ? 'create' : 'redeem';
+  const icon = t.signal === 'CREATE' ? '🟢' : '🔴';
+  const time = t.timestamp.slice(11, 19);
+  tr.innerHTML = `<td>${time}</td><td class="${cls}">${icon} ${t.signal}</td><td>${fmtN(t.spreadBps,1)} bps</td><td>$${fmtN(t.pnl,2)}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  if (tbody.children.length > 20) tbody.removeChild(tbody.lastChild);
+}
+
+// Fetch config for cost model display
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  $('cost-fee').textContent = '$' + cfg.costs.creationRedemptionFeeUsd;
+  $('cost-comm').textContent = '$' + cfg.costs.etfCommissionPerShare + '/share';
+  $('cost-btc').textContent = cfg.costs.btcExecutionBps + ' bps';
+  $('cost-impact').textContent = cfg.costs.marketImpactBps + ' bps';
+  $('cost-spread').textContent = cfg.costs.btcSpotSpreadBps + ' bps';
+});
+</script>
+</body>
+</html>
