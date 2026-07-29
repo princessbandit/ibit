@@ -22,9 +22,19 @@ const express  = require('express');
 const http     = require('http');
 const { Server } = require('socket.io');
 const WebSocket  = require('ws');
-const YahooFinance = require('yahoo-finance2').default;
-const yahooFinance  = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const { totalCostBps, fmt, fmtUsd } = require('./lib/utils');
+
+// yahoo-finance2 ships ESM-only; load it lazily via dynamic import so this
+// CJS file doesn't crash on startup when running in --dry-run (which never
+// hits the Yahoo API).
+let yahooFinance;
+async function getYahooFinance() {
+  if (!yahooFinance) {
+    const { default: YahooFinance } = await import('yahoo-finance2');
+    yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+  }
+  return yahooFinance;
+}
 const discord = require('./lib/discord');
 
 const config  = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
@@ -109,7 +119,8 @@ async function fetchIbitQuote() {
   if (Date.now() - state.lastIbitFetch < 10000) return;
   state.lastIbitFetch = Date.now();
   try {
-    const q = await yahooFinance.quote(config.etf.ticker);
+    const yf = await getYahooFinance();
+    const q = await yf.quote(config.etf.ticker);
     state.ibitBid  = q.bid  || q.regularMarketPrice || 0;
     state.ibitAsk  = q.ask  || q.regularMarketPrice || 0;
     state.ibitLast = q.regularMarketPrice || 0;
