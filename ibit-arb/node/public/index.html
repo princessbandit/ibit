@@ -50,14 +50,14 @@
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--border);
-    padding: 4px 24px;
+    padding: 0px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: relative;
   }
   header .logo {
-    height: 96px;
+    height: 70px;
     width: auto;
     object-fit: contain;
     flex-shrink: 0;
@@ -69,7 +69,7 @@
     transform: translate(-50%, -50%);
     text-align: center;
   }
-  header h1 { font-size: 24px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+  header h1 { font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
   header .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
   header .status-block { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .mode-badge {
@@ -117,7 +117,7 @@
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
   tr:hover td { background: var(--hover); }
   .badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
   .badge-create { background: rgba(79,154,110,0.15); color: var(--green); border: 1px solid rgba(79,154,110,0.5); }
@@ -233,7 +233,7 @@
 <div style="margin: 0 24px 16px;">
   <div class="card">
     <div class="label" style="margin-bottom:10px">Market Overview</div>
-    <div id="market-overview" style="color:var(--caption);text-align:center">Loading...</div>
+    <div id="market-overview" style="color:var(--caption);text-align:left">Loading...</div>
   </div>
 </div>
 
