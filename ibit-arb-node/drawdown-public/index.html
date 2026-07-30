@@ -264,7 +264,7 @@ function severityLabel(pct) {
 async function loadData() {
     document.getElementById('lastUpdated').innerText = 'Fetching data...';
     try {
-        const res = await fetch('/drawdown/data');
+        const res = await fetch('/api/drawdown/data');
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
