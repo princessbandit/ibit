@@ -67,7 +67,7 @@
             border-radius: 10px;
             padding: 20px;
         }
-        .chart-box h2 { font-size:1rem; margin-bottom:16px; color:var(--meta); }
+        .chart-box h2 { font-size:12px; margin-bottom:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
         .loading { color:var(--muted); font-size:0.9rem; text-align:center; padding:40px; }
         .error { color: #B8555F; font-size: 0.9rem; text-align: center; padding: 20px; }
         .refresh-btn {
@@ -118,18 +118,18 @@
 
 <div class="charts">
     <div class="chart-box">
-        <h2>📊 5-Min Rolling Drawdown (Live)</h2>
+        <h2>5-Min Rolling Drawdown (Live)</h2>
         <canvas id="drawdownChart"></canvas>
     </div>
     <div class="chart-box">
-        <h2>🕰️ Historical Context — LOW_VOL_BULL vs All-State</h2>
+        <h2>Historical Context — LOW_VOL_BULL vs All-State</h2>
         <canvas id="historyChart"></canvas>
     </div>
 </div>
 
 <!-- Historical comparison table -->
 <div class="chart-box" style="margin-top:24px">
-    <h2 style="margin-bottom:16px">📋 Historical Drawdown Reference Table</h2>
+    <h2 style="margin-bottom:16px">Historical Drawdown Reference Table</h2>
     <table id="historyTable" style="width:100%;border-collapse:collapse;font-size:0.88rem;">
         <thead>
             <tr style="color:#8b949e;text-align:left;border-bottom:1px solid #30363d">
@@ -147,7 +147,7 @@
 
 <!-- Closing window table 3:55 - 4:00 PM ET -->
 <div class="chart-box" style="margin-top:24px">
-    <h2 style="margin-bottom:4px">⏰ Market Close Window — 3:55 PM – 4:00 PM ET (NAV Strike)</h2>
+    <h2 style="margin-bottom:4px">Market Close Window — 3:55 PM – 4:00 PM ET (NAV Strike)</h2>
     <p style="color:#8b949e;font-size:0.8rem;margin-bottom:16px">Low Vol Bull drawdowns during the final 5 minutes of NYSE trading. NAV is struck at 4:00 PM ET.</p>
     <table id="closingTable" style="width:100%;border-collapse:collapse;font-size:0.88rem;">
         <thead>
