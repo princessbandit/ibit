@@ -69,17 +69,43 @@
     transform: translate(-50%, -50%);
     text-align: center;
   }
-  header h1 { font-size: 20px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+  header h1 { font-size: 19.84px; font-weight: 700; color: var(--muted); letter-spacing: 1px; margin: 0 0 2px; }
   header .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
   header .status-block { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .status-row { display: flex; align-items: center; gap: 8px; }
+  .status-text { font-size: 11px; color: var(--caption); }
   .mode-badge {
-    background: #7059FB22;
+    background: rgba(79,154,110,0.15);
+    border: 1px solid rgba(79,154,110,0.5);
+    color: var(--green);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .mode-badge.error {
+    background: rgba(184,85,95,0.15);
+    border: 1px solid rgba(184,85,95,0.5);
+    color: var(--red);
+  }
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--strong);
     border: 1px solid #7059FB66;
     color: var(--text);
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12.8px;
     font-weight: 600;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .refresh-btn:hover {
+    background: linear-gradient(90deg, var(--violet), var(--blue));
+    border-color: #7DA5FF88;
   }
 
   .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; padding: 16px 24px; }
@@ -141,14 +167,19 @@
 <body>
 
 <header>
-  <img class="logo" src="openexa_logo.webp" alt="Logo">
+  <a href="https://www.openexa.com/" target="_blank" rel="noopener noreferrer">
+    <img class="logo" src="openexa_logo.webp" alt="OpenEXA">
+  </a>
   <div class="title-block">
     <h1>IBIT Arbitrage Dashboard</h1>
     <div class="sub">BlackRock iShares Bitcoin Trust ETF &nbsp;|&nbsp; Custodian: Coinbase Custody &nbsp;|&nbsp; <span id="conn-status"></span><span id="conn-text">Connecting...</span></div>
   </div>
   <div class="status-block">
-    <div class="mode-badge" id="mode-badge">—</div>
-    <div style="font-size:11px;color:var(--caption)" id="last-update">—</div>
+    <div class="status-row">
+      <div class="mode-badge" id="mode-badge">—</div>
+      <button class="refresh-btn" id="refresh-btn" type="button">↻ Refresh</button>
+    </div>
+    <div class="status-text" id="last-update">—</div>
   </div>
 </header>
 
@@ -415,9 +446,11 @@ const state = {
   winRate: 0,
   totalPnl: 0,
   trades: [],
-  basisBps: 0,
   lastSignalAt: 0,
 };
+
+// Real IBIT bid/ask/last, populated by loadMarketOverview() from the live feed.
+let liveIbit = null;
 
 function totalCostBps(midPrice) {
   const c = CFG.costs;
@@ -438,17 +471,15 @@ async function fetchBtcPrice() {
 
 function nextSnapshot(btcPrice) {
   const nav = btcPrice * CFG.etf.btcPerShare;
-  state.basisBps += (Math.random() - 0.5) * 1.4;
-  state.basisBps = Math.max(-60, Math.min(60, state.basisBps));
-  const mid = nav * (1 + state.basisBps / 10000);
-  const halfSpread = mid * 0.00015;
-  const bid = mid - halfSpread;
-  const ask = mid + halfSpread;
+  const bid = liveIbit?.bid ?? nav;
+  const ask = liveIbit?.ask ?? nav;
+  const mid = liveIbit?.last ?? ((bid + ask) / 2);
+  const premBps = nav > 0 ? ((mid - nav) / nav) * 10000 : 0;
   const costBps = totalCostBps(mid);
   const trigger = costBps + CFG.signals.minSpreadAfterCostsBps;
   let signal = 'NEUTRAL';
-  if (state.basisBps > trigger) signal = 'CREATE';
-  if (state.basisBps < -trigger) signal = 'REDEEM';
+  if (premBps > trigger) signal = 'CREATE';
+  if (premBps < -trigger) signal = 'REDEEM';
   return {
     timestamp: new Date().toISOString(),
     btcPrice,
@@ -458,7 +489,7 @@ function nextSnapshot(btcPrice) {
     nav,
     btcPerShare: CFG.etf.btcPerShare,
     btcPerShareSource: 'config',
-    premBps: state.basisBps,
+    premBps,
     trigger,
     signal,
     costBps,
@@ -516,12 +547,15 @@ async function tick() {
     registerTrade(snapshot);
     applySnapshot(snapshot);
     $('conn-status').className  = 'connected';
-    $('conn-text').textContent  = 'Live (Static Mode)';
-    $('mode-badge').textContent = 'STATIC';
+    $('conn-text').textContent  = 'Live';
+    $('mode-badge').textContent = 'LIVE';
+    $('mode-badge').className   = 'mode-badge';
   } catch (error) {
     $('conn-status').className  = '';
     $('conn-text').textContent  = 'Data Error';
     $('mode-badge').textContent = 'ERROR';
+    $('mode-badge').className   = 'mode-badge error';
+    $('last-update').textContent = 'Failed to load data.';
   }
 }
 
@@ -537,6 +571,9 @@ async function loadMarketOverview() {
     const json = await res.json();
 
     const ibitEntries = Object.entries(json.market_data || {}).filter(([sym]) => sym.toUpperCase() === 'IBIT');
+    if (ibitEntries.length > 0) {
+      liveIbit = ibitEntries[0][1];
+    }
     const rows = ibitEntries.length > 0
       ? ibitEntries.map(([sym, d]) => {
         const change = d.change_pct != null
@@ -567,6 +604,11 @@ async function loadMarketOverview() {
 
 loadMarketOverview();
 setInterval(loadMarketOverview, 5000); // auto-refresh every 5s
+
+$('refresh-btn').addEventListener('click', () => {
+  tick();
+  loadMarketOverview();
+});
 </script>
 </body>
 </html>
