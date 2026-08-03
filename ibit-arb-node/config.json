@@ -1,0 +1,34 @@
+{
+  "etf": {
+    "ticker": "IBIT",
+    "creationUnitShares": 40000
+  },
+  "bitcoin": {
+    "ticker": "BTC-USD"
+  },
+  "costs": {
+    "creationRedemptionFeeUsd": 750,
+    "etfCommissionPerShare": 0.005,
+    "btcExecutionBps": 2,
+    "marketImpactBps": 1,
+    "btcSpotSpreadBps": 2
+  },
+  "signals": {
+    "minSpreadAfterCostsBps": 10
+  },
+  "blackrock": {
+    "holdingsUrl": "https://www.ishares.com/us/products/333011/ishares-bitcoin-trust-etf/1467271812596.ajax?tab=all&fileType=json"
+  },
+  "analysis": {
+    "startDate": "2024-01-11"
+  },
+  "ibkr": {
+    "host": "127.0.0.1",
+    "port": 7497,
+    "clientId": 1
+  },
+  "coinbase": {
+    "wsUrl": "wss://ws-feed.exchange.coinbase.com",
+    "restUrl": "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
+  }
+}

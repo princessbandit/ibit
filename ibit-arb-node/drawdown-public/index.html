@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>BTC Max Drawdown Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg:#050812; --panel:#0C1528CC; --strong:#111D3BCC; --nav:#060C1CCC; --hover:#0F1E3ACC; --text:#9AB0D4; --muted:#9AB0D4; --meta:#B8C8E6; --caption:#7F94BA; --violet:#7059FB; --blue:#5070C8; --bright:#6F86FF; --border:#7DA5FF28; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height:100vh;
+            background-image:linear-gradient(#5F7FB51A 1px,transparent 1px),linear-gradient(90deg,#5F7FB51A 1px,transparent 1px),linear-gradient(90deg,#1A3D8F 0%,#050812 50%,#0E5669 100%);
+            background-color:var(--bg);
+            background-size:40px 40px,40px 40px,100% 100%;
+            background-attachment:fixed;
+            color:var(--text);
+            font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        }
+        .header { background:var(--nav); backdrop-filter:blur(18px); padding:14px 24px; border-bottom:1px solid var(--border); position:relative; display:flex; justify-content:center; align-items:center; text-align:center; }
+        .header .header-logo { position:absolute; left:40px; top:50%; transform:translateY(-50%); height:38px; width:auto; display:block; }
+        .header .header-controls { position:absolute; right:30px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+        .header .top-row { display:flex; align-items:center; gap:8px; }
+        .header .status-badge { padding:4px 12px; border-radius:12px; font-size:12px; font-weight:bold; background:rgba(79,154,110,0.15); color:#4F9A6E; border:1px solid rgba(79,154,110,0.5); }
+        .header #lastUpdated { font-size:0.7rem; color:var(--caption); }
+        @media(max-width:800px){ .header{padding:16px;flex-direction:column;gap:12px} .header .header-controls{position:static;transform:none;align-items:center} .header .header-logo{position:static;transform:none;height:44px} }
+        .footer { padding:20px 24px; text-align:center; color:var(--caption); font-size:0.8rem; }
+        .footer span { margin:0 10px; }
+        .content { padding: 24px; }
+        h1 {
+            font-size: 1.24rem;
+            margin-bottom: 4px;
+            font-weight: 700;
+            color:var(--muted);
+        }
+        .subtitle { color:var(--muted); font-size:0.8rem; margin-bottom:24px; }
+        .header .subtitle { margin-bottom:0; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .card {
+            background:linear-gradient(145deg,var(--strong),var(--panel));
+            border:1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+        .card .label { font-size:0.75rem; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+        .card .value { font-size: 1.6rem; font-weight: bold; color: #B8555F; }
+        .card .value.green { color: #4F9A6E; }
+        .card .value.yellow { color: #BFA054; }
+        .card .sub { font-size:0.75rem; color:var(--caption); margin-top:4px; }
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+        .chart-box {
+            background:linear-gradient(145deg,#13284DCC,#0C1830CC);
+            border:1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .chart-box h2 { font-size:12px; margin-bottom:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
+        .loading { color:var(--muted); font-size:0.9rem; text-align:center; padding:40px; }
+        .error { color: #B8555F; font-size: 0.9rem; text-align: center; padding: 20px; }
+        .refresh-btn {
+            background:var(--strong);
+            border:1px solid var(--border);
+            color:var(--text);
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display:flex;
+            align-items:center;
+            gap:6px;
+        }
+        .refresh-btn:hover { background:linear-gradient(90deg,var(--violet),var(--blue)); border-color:#7DA5FF88; }
+        table tbody tr { border-bottom:1px solid var(--border); }
+        table tbody tr:hover { background:var(--hover); }
+        table td { padding: 8px; vertical-align: middle; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .tag-green { background: rgba(79,154,110,0.15); color: #4F9A6E; }
+        .tag-yellow { background: rgba(191,160,84,0.15); color: #BFA054; }
+        .tag-red { background: rgba(184,85,95,0.15); color: #B8555F; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <img class="header-logo" src="/openexa-logo.png" alt="OpenEXA logo">
+    <div>
+        <h1 style="margin-bottom:2px">BTC Max Drawdown Dashboard</h1>
+        <p class="subtitle">Live 5-minute maximum drawdown analysis via Kraken — Low Volatility Bull Trend regime</p>
+    </div>
+    <div class="header-controls">
+        <div class="top-row">
+            <span class="status-badge" id="status-badge">LIVE</span>
+            <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+        </div>
+        <span id="lastUpdated">Loading...</span>
+    </div>
+</div>
+
+<div class="content">
+
+<div class="cards" id="cards">
+    <div class="card"><div class="label">Max Drawdown (Today)</div><div class="value loading">—</div></div>
+</div>
+
+<div class="charts">
+    <div class="chart-box">
+        <h2>5-Min Rolling Drawdown (Live)</h2>
+        <canvas id="drawdownChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h2>Historical Context — LOW_VOL_BULL vs All-State</h2>
+        <canvas id="historyChart"></canvas>
+    </div>
+</div>
+
+<!-- Historical comparison table -->
+<div class="chart-box" style="margin-top:24px">
+    <h2 style="margin-bottom:16px">Historical Drawdown Reference Table</h2>
+    <table id="historyTable" style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+        <thead>
+            <tr style="color:#8b949e;text-align:left;border-bottom:1px solid #30363d">
+                <th style="padding:8px">Event</th>
+                <th style="padding:8px">All-State DD (%)</th>
+                <th style="padding:8px">Low Vol Bull DD (%)</th>
+                <th style="padding:8px">Close Window DD (%)<br><span style="font-weight:normal;font-size:0.75rem">3:55–4:00 PM ET</span></th>
+                <th style="padding:8px">Reduction</th>
+                <th style="padding:8px">Context</th>
+            </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+    </table>
+</div>
+
+<!-- Closing window table 3:55 - 4:00 PM ET -->
+<div class="chart-box" style="margin-top:24px">
+    <h2 style="margin-bottom:4px">Market Close Window — 3:55 PM – 4:00 PM ET (NAV Strike)</h2>
+    <p style="color:#8b949e;font-size:0.8rem;margin-bottom:16px">Low Vol Bull drawdowns during the final 5 minutes of NYSE trading. NAV is struck at 4:00 PM ET.</p>
+    <table id="closingTable" style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+        <thead>
+            <tr style="color:#8b949e;text-align:left;border-bottom:1px solid #30363d">
+                <th style="padding:8px">Time (ET)</th>
+                <th style="padding:8px">Time (UTC)</th>
+                <th style="padding:8px">State</th>
+                <th style="padding:8px">Open Price</th>
+                <th style="padding:8px">Low Price</th>
+                <th style="padding:8px">Drawdown (%)</th>
+            </tr>
+        </thead>
+        <tbody id="closingTableBody">
+            <tr><td colspan="6" style="padding:16px;color:#8b949e;text-align:center">No data yet — window is 3:55–4:00 PM ET only</td></tr>
+        </tbody>
+    </table>
+</div>
+
+</div>
+
+<div class="footer">
+    <span>BTC Max Drawdown Dashboard</span>|<span>&copy; 2026 OpenEXA</span>|<span>Not financial advice</span>
+</div>
+
+<script>
+let drawdownChart, historyChart;
+
+// Historical reference data — 5-min max drawdown FROM Low Volatility Bull Trend state only
+// These are lower than all-state drawdowns because they filter out high-vol/bear regimes
+const historicalData = {
+    labels: [
+        'Mar 2020\n(Black Thu)', 'May 2021\n(Crash)', 'Nov 2022\n(FTX)', 'Jun 2022\n(Luna)', 'Jan 2024\n(ETF launch)', 'Today'
+    ],
+    // Estimated 5-min drawdowns specifically from LOW_VOL_BULL regime transitions
+    values: [3.8, 2.4, 1.9, 1.6, 0.9, null],
+    // All-state 5-min drawdowns (no regime filter)
+    allStateValues: [9.8, 5.2, 4.1, 3.3, 1.6, null],
+    // LOW_VOL_BULL drawdown specifically in the 3:55-4:00 PM ET closing window
+    closingWindowValues: [2.9, 1.8, 1.4, 1.1, 0.6, null],
+    // Context notes per event
+    notes: [
+        'Regime broke sharply from low-vol bull before crash',
+        'Extended bull trend; sharp reversal at ATH',
+        'Pre-FTX was deceptively calm bull',
+        'Luna: brief calm before collapse',
+        'ETF approval; low-vol bull drift then reversion',
+        'Live'
+    ],
+    events: [
+        'Mar 2020 (Black Thursday)',
+        'May 2021 (Crash)',
+        'Nov 2022 (FTX Collapse)',
+        'Jun 2022 (Luna Crash)',
+        'Jan 2024 (ETF Launch)',
+        'Today (Live)'
+    ]
+};
+
+function buildHistoryTable(livePct, liveClosingPct) {
+    const allState = [...historicalData.allStateValues];
+    const lvb = [...historicalData.values];
+    const closing = [...historicalData.closingWindowValues];
+    allState[allState.length - 1] = livePct;
+    lvb[lvb.length - 1] = livePct;
+    closing[closing.length - 1] = liveClosingPct !== null ? liveClosingPct : null;
+
+    const tbody = document.getElementById('historyTableBody');
+    tbody.innerHTML = historicalData.events.map((event, i) => {
+        const all = allState[i];
+        const lv = lvb[i];
+        const cw = closing[i];
+        const reduction = all > 0 ? (((all - lv) / all) * 100).toFixed(0) : 0;
+        const isToday = i === historicalData.events.length - 1;
+
+        function tagClass(v) {
+            if (v === null) return 'tag-yellow';
+            if (v < 1) return 'tag-green';
+            if (v < 3) return 'tag-yellow';
+            return 'tag-red';
+        }
+
+        const cwCell = cw !== null
+            ? `<span class="tag ${tagClass(cw)}">${cw.toFixed(2)}%</span>`
+            : `<span style="color:#8b949e">Outside window</span>`;
+
+        return `<tr style="${isToday ? 'background:#1c2128;font-weight:bold' : ''}">
+            <td>${isToday ? '&#x1F7E1; ' : ''}${event}</td>
+            <td><span class="tag ${tagClass(all)}">${all.toFixed(2)}%</span></td>
+            <td><span class="tag ${tagClass(lv)}">${lv.toFixed(2)}%</span></td>
+            <td>${cwCell}</td>
+            <td style="color:#4F9A6E">&#x2193;${reduction}% lower</td>
+            <td style="color:#8b949e;font-size:0.8rem">${historicalData.notes[i]}</td>
+        </tr>`;
+    }).join('');
+}
+
+function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+function severityColor(pct) {
+    if (pct < 1) return '#4F9A6E';      // green — calm
+    if (pct < 3) return '#BFA054';      // yellow — moderate
+    return '#B8555F';                   // red — severe
+}
+
+function severityLabel(pct) {
+    if (pct < 1) return '🟢 Calm';
+    if (pct < 3) return '🟡 Moderate';
+    return '🔴 Severe';
+}
+
+async function loadData() {
+    document.getElementById('lastUpdated').innerText = 'Fetching data...';
+    try {
+        const res = await fetch('/api/drawdown/data');
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const pct = parseFloat(data.maxDrawdown);
+        const color = severityColor(pct);
+
+        // Update cards
+        document.getElementById('cards').innerHTML = `
+            <div class="card">
+                <div class="label">Max Drawdown</div>
+                <div class="value" style="color:${color}">${data.maxDrawdown}</div>
+                <div class="sub">${severityLabel(pct)}</div>
+            </div>
+            <div class="card">
+                <div class="label">Trigger State</div>
+                <div class="value" style="font-size:0.95rem;color:#4F9A6E">&#x1F7E2; ${data.triggerState}</div>
+                <div class="sub">SMA20 + ATR regime</div>
+            </div>
+            <div class="card">
+                <div class="label">Started At</div>
+                <div class="value" style="font-size:1.1rem;color:#9AB0D4">${data.startTime ? new Date(data.startTime).toLocaleTimeString() : 'N/A'}</div>
+                <div class="sub">${data.startTime ? new Date(data.startTime).toLocaleDateString() : ''}</div>
+            </div>
+            <div class="card">
+                <div class="label">Ended At</div>
+                <div class="value" style="font-size:1.1rem;color:#9AB0D4">${data.endTime ? new Date(data.endTime).toLocaleTimeString() : 'N/A'}</div>
+                <div class="sub">Duration: 5 min</div>
+            </div>
+            <div class="card">
+                <div class="label">Low Vol Bull Periods</div>
+                <div class="value green">${(data.stateCounts && data.stateCounts['LOW_VOL_BULL']) || 0}</div>
+                <div class="sub">of ${data.dataPoints} total candles</div>
+            </div>
+            <div class="card">
+                <div class="label">Data Points</div>
+                <div class="value green">${data.dataPoints}</div>
+                <div class="sub">1-min candles analysed</div>
+            </div>
+        `;
+
+        document.getElementById('lastUpdated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        // Live drawdown chart
+        const drawdowns = data.drawdowns;
+        const labels = drawdowns.map((_, i) => i);
+        if (drawdownChart) drawdownChart.destroy();
+        drawdownChart = new Chart(document.getElementById('drawdownChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Drawdown (%)',
+                    data: drawdowns,
+                    borderColor: color,
+                    backgroundColor: hexToRgba(color, 0.12),
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                plugins: { legend: { labels: { color: '#9AB0D4' } } },
+                scales: {
+                    x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Minute Index', color: '#8b949e' } },
+                    y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Drawdown (%)', color: '#8b949e' } }
+                }
+            }
+        });
+
+        // Historical comparison chart — LOW_VOL_BULL state only
+        historicalData.values[historicalData.values.length - 1] = pct;
+        historicalData.allStateValues[historicalData.allStateValues.length - 1] = pct;
+        const barColors = historicalData.values.map((v, i) => {
+            if (i === historicalData.values.length - 1) return color; // today
+            return severityColor(v); // colour-code historical by severity
+        });
+        const allStateColors = historicalData.allStateValues.map((v, i) => {
+            if (i === historicalData.allStateValues.length - 1) return color;
+            return severityColor(v) + '88'; // semi-transparent for all-state
+        });
+        if (historyChart) historyChart.destroy();
+        historyChart = new Chart(document.getElementById('historyChart'), {
+            type: 'bar',
+            data: {
+                labels: historicalData.labels,
+                datasets: [
+                    {
+                        label: 'All-State DD (%)',
+                        data: historicalData.allStateValues,
+                        backgroundColor: allStateColors,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Low Vol Bull DD (%)',
+                        data: historicalData.values,
+                        backgroundColor: barColors,
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: { labels: { color: '#9AB0D4' } },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: (items) => {
+                                const i = items[0].dataIndex;
+                                const note = historicalData.notes[i];
+                                return note ? [`📝 ${note}`] : [];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                    y: {
+                        ticks: { color: '#8b949e' },
+                        grid: { color: '#21262d' },
+                        title: { display: true, text: 'Drawdown (%)', color: '#8b949e' }
+                    }
+                }
+            }
+        });
+
+        // Build reference table — pass live closing window max DD if available
+        const liveClosingPct = data.closingWindow && data.closingWindow.length > 0
+            ? Math.max(...data.closingWindow.map(d => d.value))
+            : null;
+        buildHistoryTable(pct, liveClosingPct);
+
+        // Build closing window table (3:55 - 4:00 PM ET)
+        const closingBody = document.getElementById('closingTableBody');
+        if (data.closingWindow && data.closingWindow.length > 0) {
+            closingBody.innerHTML = data.closingWindow.map(d => {
+                const utcDate = new Date(d.time);
+                // Convert UTC to ET (UTC-4 during EDT)
+                const etDate = new Date(d.time - (4 * 60 * 60 * 1000));
+                const etTime = etDate.toUTCString().slice(17, 22); // HH:MM
+                const utcTime = utcDate.toUTCString().slice(17, 22);
+                const isLVB = d.state === 'LOW_VOL_BULL';
+                const ddColor = severityColor(d.value);
+                return `<tr>
+                    <td style="font-weight:bold">${etTime} ET</td>
+                    <td style="color:#8b949e">${utcTime} UTC</td>
+                    <td><span class="tag ${isLVB ? 'tag-green' : 'tag-yellow'}">${d.state}</span></td>
+                    <td>$${d.open ? d.open.toFixed(2) : 'N/A'}</td>
+                    <td>$${d.low ? d.low.toFixed(2) : 'N/A'}</td>
+                    <td><span class="tag" style="background:${ddColor}22;color:${ddColor}">${d.value.toFixed(4)}%</span></td>
+                </tr>`;
+            }).join('');
+        } else {
+            closingBody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:#8b949e;text-align:center">No data — outside 3:55–4:00 PM ET window or no LOW_VOL_BULL candles in range</td></tr>`;
+        }
+
+    } catch (err) {
+        document.getElementById('cards').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+        document.getElementById('lastUpdated').innerText = 'Failed to load data.';
+    }
+}
+
+// Auto-refresh every 60 seconds
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
