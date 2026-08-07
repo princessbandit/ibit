@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IBIT Arb Dashboard — BlackRock iShares Bitcoin Trust</title>
+<title>IBIT Arb Monitor — BlackRock iShares Bitcoin Trust</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -171,7 +171,7 @@
     <img class="logo" src="openexa_logo.webp" alt="OpenEXA">
   </a>
   <div class="title-block">
-    <h1>IBIT Arbitrage Dashboard</h1>
+    <h1>IBIT Arbitrage Monitor</h1>
     <div class="sub">BlackRock iShares Bitcoin Trust ETF &nbsp;|&nbsp; Custodian: Coinbase Custody &nbsp;|&nbsp; <span id="conn-status"></span><span id="conn-text">Connecting...</span></div>
   </div>
   <div class="status-block">
@@ -419,7 +419,7 @@ function renderTrades(trades) {
 const CFG = {
   etf: {
     creationUnitShares: 40000,
-    btcPerShare: 0.000569,
+    btcPerShare: 0.00056625,
   },
   costs: {
     creationRedemptionFeeUsd: 750,
