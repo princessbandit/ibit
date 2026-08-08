@@ -579,11 +579,15 @@ async function loadMarketOverview() {
         const change = d.change_pct != null
           ? `<span style="color:${d.change_pct >= 0 ? '#4F9A6E' : '#B8555F'}">${d.change_pct > 0 ? '+' : ''}${d.change_pct}%</span>`
           : '—';
+        // Fall back to the same NAV-derived bid/ask shown in the IBIT Mid Price
+        // card when the feed itself doesn't have a live bid/ask (e.g. no active quote).
+        const bid = d.bid ?? (state.etfBid > 0 ? state.etfBid : null);
+        const ask = d.ask ?? (state.etfAsk > 0 ? state.etfAsk : null);
         return `<tr>
           <td><b>${sym}</b></td>
           <td>$${d.last?.toLocaleString() ?? '—'}</td>
-          <td>${d.bid ? '$' + d.bid.toLocaleString() : '—'}</td>
-          <td>${d.ask ? '$' + d.ask.toLocaleString() : '—'}</td>
+          <td>${bid ? '$' + bid.toLocaleString() : '—'}</td>
+          <td>${ask ? '$' + ask.toLocaleString() : '—'}</td>
           <td>${d.spread_bps ?? '—'} bps</td>
           <td>${change}</td>
         </tr>`;
